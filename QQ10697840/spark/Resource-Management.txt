@@ -1,0 +1,39 @@
+Spark资源管理（ 参考http://www.cnblogs.com/hseagle/p/3858694.html )
+  从狭义的角度来说，Spark系统中的资源仅仅包括CPU Core和Memory.
+
+参与资源管理的角色
+   Master   掌管整个cluster的资源，主要是指cpu core和memory，但Master自身并不拥有这些资源
+   Worker   资源贡献者，在启动时主动向Master汇报自身的资源, 在master的指示下负责启动executor
+   Executor 资源的消费者，由Worker跟Master调度启动，在Driver服务的指导下完成App的任务
+   Driver   资源的消费者，Driver会提交一到多个job，每个job在拆分成多个task之后，会分发到各个executor真正的执行
+   App      资源的消费者和真正的使用者，将目标切分为一个个的Job及task，并由Executor完成
+
+资源的注册
+   Master   RegisterWorker消息中收到Worker申报的资源，并记录
+   Worker   在启动的初始化进程中申报资源，preStart->registerWithMaster->tryRegisterAllMasters
+
+资源分配过程
+   资源的分配由Master在Schedule方法中完成。schedule函数处理逻辑概述如下：
+
+   1、查看目前存活的worker中剩余的内存是否能够满足application每个task的最低需求，如果是则将该worker加入到可分配资源的队列
+   2、根据分发策略，如果是决定将工作平摊到每个worker，则每次在一个worker上占用一个core，直到所有可分配资源耗尽或已经满足driver的需求
+   3、如果分发策略是分发到尽可能少的worker，则一次占用尽worker上的可分配core，直到driver的core需求得到满足
+   4、根据步骤2或3的结果在每个worker上添加相应的executor，处理函数是addExecutor
+  
+   Worker上资源的使用
+       UseddMem =  Driver.mem + Executor.mem
+       UsedCore =  Driver.Core  + Executor.Core 
+   Master上资源的使用
+      worker.addDriver(driver)
+      worker.addExecutor(exec)
+      Master.UserdRes = DriverRes + AppRes =  worker.addDriver(driver) + worker.addExecutor(exec)
+
+资源回收过程（包括正常及异常情况）
+  App资源的回收：正常情况 Driver调用SparkContext.stop回收App中使用的资源；异常情况，依靠DisassociatedEvent消息
+  Driver自身资源的回收： 依靠AKKA的消息DisassociatedEvent
+
+
+资源异常过程
+  Worker异常丢失：依靠心跳机制检查
+  Executor  Worker中的监控线程ExecutorRunner会立即感知，进而上报给Master，Master会回收资源，并重新要求worker启动executor。
+  
