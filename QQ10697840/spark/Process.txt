@@ -1,0 +1,7 @@
+Spark流程 (参考了spark中文社区)
+   
+spark中的流程众多，参与角色也不少，一个App从提交到得到输出结果，中间涉及了诸多流程和参与角色，从主导角色方面来划分，
+可以讲整个流程划分为三段：
+  AppClient主导  AppClient向集群提交App
+  Master主导     Master的资源调度及分配，launchDriver，调度App及Executor
+  Driver的主导   执行App任务，返回计算结果
