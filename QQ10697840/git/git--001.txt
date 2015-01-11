@@ -1,0 +1,160 @@
+ git读书笔记整理 
+     参考http://blog.chinaunix.net/uid-25871104-id-3419159.html
+
+1, config
+    git有三个config文件：
+    1, git工程下的.git/config
+    2, ~/.gitconfig        --global
+      Xp下的位置为: "C:\Documents and Settings\Administrator\.gitconfig"
+    3, /etc/gitconfig    --system
+    
+2, 暂存区(Stage或Index)的概念
+    git的工作区()和版本库的概念比较明显，checkout可以将版本库里的内容checkout到工作区，
+    工作区的内容可以通过commit -a来checkin到版本库里；除此之外，暂存区也是必须了解的概念。
+    暂存区是工作区与版本库之间的中间区域，一般工作区的改动会通过add操作加入到暂存区里，
+    然后使用commit操作从暂存区里checkin到版本库里。
+    与暂存区相关的操作：
+    git add file1 将工作区的改动加入到暂存区
+    
+    git diff --cached(或者 --staged) 显示暂存区相对于HEAD的改动
+    git diff  显示工作区相对于暂存区的改动
+    git status 显示工作区以及暂存区相对于HEAD的改动
+    git reset 将暂存区的内容reset为HEAD的内容，即撤销上一次add的内容
+    git reset --mixed
+    git reseet — file1 同上
+    
+    git checkout . 或者 git checkout -- <file>  用暂存区的全部或者指定文件替换工作区的问题
+    git checkout HEAD . 或者 git checkout HEAD <file> 用HEAD指向的master分支中的全部或者部分文件替换暂存区和工作区中的文件
+    
+    git stash 将所有未提交的改动咱存到stash中
+    git stash list 参看当前分支中所有暂存到stash中内容
+    git stash pop 将暂存到stash中的内容恢复到工作区和暂存区中
+    这三个命令一般用在中断当前分支的开发工作，转到其他分支进行更紧急的操作，
+    然后回到之前的分支，继续之前的开发。注意没有被git跟踪的文件是不会被保存进度的。.
+    需要先执行add操作，然后再stash。
+    
+3, git reset
+    git reset根据参数的不同涉及三个操作：
+    a, 将HEAD指针指向特定的commit
+    b, 将暂存区的内容替换为HEAD指向的commit的内容
+    c, 将工作区的内容替换为HEAD指向的commit的内容
+    
+    git reset --soft仅执行a
+    git reset --mixed仅执行b
+    git reset --hard执行abc
+    git reset 执行ab
+    
+    另外下面的命令会把工作区的改动撤销，即变为与暂存区的内容相同
+    git checkout — file
+    
+4, git add
+    git add -u 将所有git跟踪的文件的改动(修改，删除)提交到暂存区
+    git add -i 交互式的add
+
+5, gitignore
+    .gitignore文件可以让git忽略某些或者某种类型的文件。但这是对本git库中的所有开发者都生效的；
+    .git/info/exclude文件则只对本git的本开发者生效；
+    git config --global core.excludesfile filename则可设置对本开发者的所有git库都生效的ignore文件；
+    若三个ignore文件都存在，哪个生效？？
+    
+6, reverse commit
+    git commit - -amend 可以覆盖前一次提交,假设前一次commit漏掉了什么东西,用这个命令就可以很方便的把漏掉的东西加进去,两次提交的内容会合并. log以第二次的为准,如果第二次没有log,则显示第一次的log
+    git reset --soft HEAD^^^
+    git commit -m
+    之前介绍过git reset --soft可以将HEAD指针reset到之前的任意一次commit.那么,在上面的操作中,我们先将HEAD指针指向前一次commit的父父父父父提交,但工作区的内容未变,然后commit当前工作区的内容.这样就可以将之前的三次提交合并为一次提交。
+    git revert HEAD 可以撤销上一次提交，但会显示一条新的log，表明revert上一次提交
+    如果我想对HEAD^ ~HEAD^^^之前的三次提交进行合并，怎么办？
+    
+7, merge and conflict
+    将当两个分支(本地分支与远程分支，本地的两个分支)的内容合并到一起时，称为merge，merge时有可能引发冲突(conflict)。
+    假设本地存在两个分支，master和dev，现在要将dev上的内容合并到master上，可以maste分支上使用下面的命令进行合并：
+    git merge dev
+    一般情况下，合并可以自动完成，比如两个分支上不同的文件发生了改变，或者同一文件不同的区域发生了改变，合并都可以自动完成；但是如果同一文件的同一位置都有改变，那么合并将会产生冲突。
+    冲突会在工作区中呈现，使用git diff可以查看这些冲突。通过编辑冲突的文件，然后add/commit，即可解决这些冲突。
+    当发生冲突时，也可以使用图形化工具来解决冲突：
+    git mergetool
+    实际上是打开一个diff工具，供用户方便的编辑。
+    
+    git pull实际上包含了fetch和merge两个动作。
+    
+8, tag
+    使用下面的命令查看tag
+    git tag
+    git tag -n1
+    git tag -l v2.0*
+    git log --oneline --decorate
+    
+    创建tag
+    git tag -m "decribe" tag-name
+    删除tag
+    git tag -d tag-name
+    
+    tag并不会被默认的push动作推送到remote，必须显示的推送：
+    git push origin tag-name 推送本地指定的tag
+    gitpush origin refs/tags/* 推送本地所有的tag
+    
+    tag可以被默认的pull动作拉取到本地
+    
+    tag并不能自动同步，如tag1在user1处进行修改，在user2出执行pull操作并不能将tag1的更改同步到本地
+    必须使用下面的命令：
+    git pull origin regs/tags/tag1:regs/tags/tag1
+    
+    使用下面的命令删除远程仓库中的tag：
+    git push origin :tag1
+    注：事实上删除远程分支也是同样的做法
+    
+9, merge和rebase
+    merge和rebase都可以对两个分支进行合并，但rebase可以让log看起来更简介与清晰，并且会减少一次提交(merge本身的这次提交)。
+    也就是说，merge动作会产生一次名为merge的commit，这也就是我们经常看到的merge *** branch的来源。而rebase则会将本地发生的commit在remote最新的提交的基础上进行修正，让这些新的commit看起来就像是在remote最新的提交的基础上再提交的，所以不会有merge的这一次提交。
+    比如，remote master上的commit历史为: A->B->C->D，local master的commit历史为A->B->E->F，那么使用merge，则会产生A->B->C->D->E->F-G的commit历史，其中G是merge动作，而且使用git log --graph还可以看到其中的分支合并的轨迹；如果使用rebase，则会产生A->B->C->D->E'->F'的commit记录，其中E'和F'是E和F的修正记录。而且使用git log --graph看的话，E'和F'看起来像是一直在remote master上commit的，没有发生过merge。
+
+10， remote
+    git remote add rt-name url-name
+    git remote rename rt-name rt-newname
+    git remote set-url rt-name url-name
+    git remote update 更新remote上的所有内容
+    如果需要本地分支track远程分支，那么在创建本地分支的时候，需要基于远程分支来创建：
+    git checkout -b newbranch origin/newbranch
+    那么本地分支将会自动track远程分支，也就是说，当你需要在本地分支和远程分支进行操作时，git会自动匹配，而不用你显示的指定，如：
+    git push origin newbranch git会自动匹配上远程分支
+    
+    如果基于本地分支再创建本地分支，则不会有track发生，可以手动的指定track：
+    git checkout --track -b newbranch oldbranch
+    
+11, git patch
+    创建补丁：
+    git format-patch -s HEAD~3 HEAD
+    发送补丁：
+    git send-email *.patch
+    接受补丁：
+    git am mail-archive
+    
+    当然，接受补丁需要在同样branch的同一个commit中apply。 
+    
+12, 工作区、暂存区级版本库的目录树浏览
+    git ls-tree -l HEAD 或者  git ls-tree -l origin/branch-1.2 查看HEAD指向的目录树 或者查看远程分支的目录树
+    
+
+13, diff比较
+    工作区与暂存区比较  git diff
+    暂存区与HEAD比较   git diff --cached
+    工作区与HEAD比较  git diff HEAD
+    
+14,  log  
+    git shortlog -s -n会显示出总的提交次数
+    git log -p会显示出每次提交做了哪些改动，
+    git log -3只列出最近三次的提交历史，
+    git log --pretty=format:"%H : %s"只列出每次提交的ID和提交信息， 
+    git log --graph会以图形化的方式显示各分支的提交历史，
+    git log commit1..commit4列出commit1和commit4之间的提交历史(不包括commit1，但包括commit4)，
+    git log commit1...commit4列出commit1和commit4之间的提交历史(不包括commit1和commit4)。 
+    git show可以查看指定的某次提交历史，通过git reflog可以查看HEAD曾经指向的commit对象的ID        
+    
+15,
+   查看远程分支 git branch -a  
+   删除远程分支  git push origin --delete <branchName> 或   git push origin :<branchName>
+   删除远程tag   git push origin --delete tag <tagname> 或 git tag -d <tagname>   git push origin :refs/tags/<tagname>
+   重命名本地分支 git branch -m devel develop 
+   把本地tag推送到远程  git push --tags
+   获取远程tag   git fetch origin tag <tagname>
+                                                         
