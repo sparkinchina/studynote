@@ -1,0 +1,21 @@
+ShuffleMapTask计算结果的保存与读取
+   http://www.aboutyun.com/thread-10995-1-1.html
+
+ShuffleMapTask的计算结果保存在哪，随后Stage中的task又是如何知道从哪里去读取的呢，这个过程一直让我困惑不已。
+
+用比较通俗一点的说法来解释一下Shuffle数据的写入和读取过程
+
+  1  每一个task负责处理一个特定的data partition
+  2  task在初始化的时候就已经明确处理结果可能会产生多少个不同的data partition
+  3  利用partitioner函数，task将处理结果存入到不同的partition，这些数据存放在当前task执行的机器上
+  4  假设当前是stage 2有两个task, stage 2可能输出4个不同的data partition, task 0和task 1各自运行于不同的机器上，task 0中的部分处理结果会存入到data partition 0，task 1的部分处理结果也可能存入到data partition 0.
+  5  由于stage 2产生了4个不同的data partition, 后续stage 1中的task个数就为4. task 0 就负责读取data partition 0的数据，对于(stage1, task0)来说，所要读取的data partition 0的内容由task 0和task 1中的partition 0共同组成。
+  6  现在问题的关键转换成为(stage_1, task_0)如何知道(stage_2, task_x)有没有相应的输出是属于data partition 0的呢？这个问题的解决就是MapStatus
+  7  每一个ShuffleMapTask在执行结束，都会上报一个MapStatus，在MapStatus中会反应出朝哪些data partition写入了数据，写入了数据则size为非零值，否则为零值
+  8  (stage_1,task_0)会去获取stage_2中所有task的MapStatus，以判定(stage_2, task_x)产生的数据中有自己需要读入的内容
+  9  假设(stage_1,task_0)知道(stage_2, task_0)生成了data partition 0中的数据，于是去(stage_2, task_0)运行时的机器去获取具体的数据，如果恰巧这个时候远端机器已经挂掉了，获取失败，怎么办？
+  10  上报异常，由DAGScheduler重新调度(stage_2,task_0)，重新生成所需要的数据。
+  11  Spark不像Hadoop中的MapReduce有一个明显的combine阶段，在spark中combine过程有两次调用，一是Shuffle数据写入过程,另一个是Shuffle数据读取过程。
+
+如果能够明白上述的过程，并对应到相应的代码，那就无须看下述的详细解释了。
+好了，让我们开始代码跟踪吧

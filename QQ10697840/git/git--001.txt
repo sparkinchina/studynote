@@ -18,6 +18,9 @@
     
     git diff --cached(或者 --staged) 显示暂存区相对于HEAD的改动
     git diff  显示工作区相对于暂存区的改动
+    git diff  HEAD 显示工作区相对于HEAD 的改动
+
+
     git status 显示工作区以及暂存区相对于HEAD的改动
     git reset 将暂存区的内容reset为HEAD的内容，即撤销上一次add的内容
     git reset --mixed
